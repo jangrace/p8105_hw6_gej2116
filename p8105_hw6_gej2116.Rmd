@@ -30,6 +30,8 @@ scale_fill_discrete = scale_fill_viridis_d
 
 # Problem 2
 
+## Clean Data
+
 1. Loaded the data
 2. Created the following variables:
    * city_state
@@ -39,18 +41,46 @@ scale_fill_discrete = scale_fill_viridis_d
    * For victim_race, only included White & Black
 5. Converted victim_age's data type from char to numeric
 
-```{r}
+```{r data_clean}
 homicide_df = read.csv('data/homicide.csv') %>% 
+  janitor::clean_names() %>% 
   mutate(city_state = str_c(city, state, sep = ", "),
-         case_solved = case_when(
+         case_solved = as.numeric(case_when(
            disposition == "Closed without arrest" ~ "0",
            disposition == "Open/No arrest" ~ "0",
-           disposition == "Closed by arrest" ~ "1")) %>% 
+           disposition == "Closed by arrest" ~ "1"))) %>% 
   filter(city_state != "Tulsa, AL", 
          city_state != "Dallas, TX", 
          city_state != "Phoenix, AZ", 
          city_state != "Kansas City, MO", 
          victim_race %in% c("White" ,"Black")) %>% 
   mutate(victim_age = as.numeric(victim_age))
+```
+
+## Baltimore, MD: GLM
+
+1. Created a new data frame called homicide_baltimore
+```{r baltimore_df}
+homicide_baltimore = homicide_df %>% 
+  filter(city_state == "Baltimore, MD")
+```
+
+2. Fit a log reg (outcome = case_solved, predictors = age, sex, race)
+3. Save glm output
+4.. Find CI & estimate for odds ratio for male vs. female (victim_sexMale row)
+```{r glm}
+baltimore_log_fit = 
+  homicide_baltimore %>% 
+  glm(case_solved ~ victim_age + victim_race + victim_sex, data = ., family = binomial()) 
+
+summary(baltimore_log_fit)
+
+baltimore_log_fit %>% 
+  broom::tidy() %>% 
+  mutate(OR = exp(estimate),
+         OR_CI_lower = exp(OR - 1.96*(std.error)),
+         OR_CI_upper = exp(OR + 1.96*(std.error))) %>% 
+  select(term, log_OR = estimate, OR, OR_CI_lower, OR_CI_upper, p.value) %>% 
+  knitr::kable()
 ```
 
