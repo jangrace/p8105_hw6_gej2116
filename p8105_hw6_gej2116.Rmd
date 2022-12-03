@@ -32,14 +32,15 @@ scale_fill_discrete = scale_fill_viridis_d
 
 ## Clean Data
 
-1. Loaded the data
-2. Created the following variables:
+1. Load data
+2. Create following variables:
    * city_state
    * case_solved: binary variable where 0 = case unresolved, 1 = case resolved
-3. Filtered the data in the following ways:
-   * For city_state, removed Dallax, TX; Phoenix, AZ; Kansas City, MO; Tulsa, AL
-   * For victim_race, only included White & Black
-5. Converted victim_age's data type from char to numeric
+3. Filter the data in the following ways:
+   * For city_state, remove Dallax, TX; Phoenix, AZ; Kansas City, MO; Tulsa, AL
+   * For victim_race, only includ White & Black
+5. Convert victim_age's data type from char to numeric
+6. Skim data
 
 ```{r data_clean}
 homicide_df = read.csv('data/homicide.csv') %>% 
@@ -49,17 +50,22 @@ homicide_df = read.csv('data/homicide.csv') %>%
            disposition == "Closed without arrest" ~ "0",
            disposition == "Open/No arrest" ~ "0",
            disposition == "Closed by arrest" ~ "1"))) %>% 
-  filter(city_state != "Tulsa, AL", 
-         city_state != "Dallas, TX", 
+  filter(city_state != "Dallas, TX", 
          city_state != "Phoenix, AZ", 
          city_state != "Kansas City, MO", 
+         city_state != "Tulsa, AL", 
          victim_race %in% c("White" ,"Black")) %>% 
   mutate(victim_age = as.numeric(victim_age))
 ```
 
+```{r skim, include = FALSE}
+skimr::skim(homicide_df)
+```
+
+
 ## Baltimore, MD: GLM
 
-1. Created a new data frame called homicide_baltimore
+1. Create a new data frame called "baltimore_df"
 ```{r baltimore_df}
 homicide_baltimore = homicide_df %>% 
   filter(city_state == "Baltimore, MD")
@@ -67,7 +73,7 @@ homicide_baltimore = homicide_df %>%
 
 2. Fit a log reg (outcome = case_solved, predictors = age, sex, race)
 3. Save glm output
-4.. Find CI & estimate for odds ratio for male vs. female (victim_sexMale row)
+4. Find CI & estimate for odds ratio for male vs. female (victim_sexMale row) while keeping all other var
 ```{r glm}
 baltimore_log_fit = 
   homicide_baltimore %>% 
@@ -84,3 +90,31 @@ baltimore_log_fit %>%
   knitr::kable()
 ```
 
+## GLM for Each City
+
+Run the test for all cities & find OR, including 95% CI
+```{r}
+homicide_df %>% 
+  glm(case_solved ~ victim_age + victim_race + victim_sex, data = .) %>% 
+  broom::tidy() %>% 
+  knitr::kable(digits = 3)
+
+homicide_df %>% 
+  group_by(city_state) %>% 
+  summarise(total = n())
+
+homicide_log_fit =
+  homicide_df %>% 
+  nest(data = -city_state) %>% 
+  mutate(
+    models = map(.x = data, ~glm(case_solved ~ victim_age + victim_race + victim_sex, data = .x, family = binomial())),
+    results = map(models, broom::tidy)) %>% 
+  unnest(results) %>% 
+    filter(term == "victim_sexMale") %>% 
+    mutate(OR = exp(estimate),
+           OR_CI_lower = exp(OR - 1.96*(std.error)),
+           OR_CI_upper = exp(OR + 1.96*(std.error))) %>%
+    select(city_state, OR, OR_CI_lower, OR_CI_upper) 
+
+homicide_log_fit
+```
