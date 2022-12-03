@@ -84,8 +84,8 @@ summary(baltimore_log_fit)
 baltimore_log_fit %>% 
   broom::tidy() %>% 
   mutate(OR = exp(estimate),
-         OR_CI_lower = exp(OR - 1.96*(std.error)),
-         OR_CI_upper = exp(OR + 1.96*(std.error))) %>% 
+         OR_CI_lower = exp(estimate - 1.96*(std.error)),
+         OR_CI_upper = exp(estimate + 1.96*(std.error))) %>% 
   select(term, log_OR = estimate, OR, OR_CI_lower, OR_CI_upper, p.value) %>% 
   knitr::kable()
 ```
@@ -93,7 +93,7 @@ baltimore_log_fit %>%
 ## GLM for Each City
 
 Run the test for all cities & find OR, including 95% CI
-```{r}
+```{r glm_all}
 homicide_df %>% 
   glm(case_solved ~ victim_age + victim_race + victim_sex, data = .) %>% 
   broom::tidy() %>% 
@@ -112,9 +112,39 @@ homicide_log_fit =
   unnest(results) %>% 
     filter(term == "victim_sexMale") %>% 
     mutate(OR = exp(estimate),
-           OR_CI_lower = exp(OR - 1.96*(std.error)),
-           OR_CI_upper = exp(OR + 1.96*(std.error))) %>%
-    select(city_state, OR, OR_CI_lower, OR_CI_upper) 
+           OR_CI_lower = exp(estimate - 1.96*(std.error)),
+           OR_CI_upper = exp(estimate + 1.96*(std.error))) %>%
+    select(city_state, OR, OR_CI_lower, OR_CI_upper)
 
-homicide_log_fit
+knitr::kable(homicide_log_fit)
 ```
+
+## Plot Resolved Homicide Cases in Each City (Male vs. Female)
+
+```{r plot}
+homicide_plot = homicide_log_fit %>% 
+  mutate(
+    city_state = fct_reorder(city_state, OR)
+  ) %>% 
+  ggplot(aes(x = city_state, y = OR)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = OR_CI_lower, ymax = OR_CI_upper)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  labs(
+    title = "OR for Solving Homicide Cases in the US (Male vs. Female Victims)",
+    x = "Location (city, state)",
+    y = "Adjusted OR")
+
+homicide_plot
+```
+
+This plot displays estimated ORs and CIs for solving homicide cases in each city. Based on the plot, the odds of resolving homicides with female vs. male plot based on city, state can be summarized as follows:  
+Cities with nearly equal odds ratio (OR =~ 1):  
+* Atlanta, GA  
+* Richmond, VA  
+Cities where OR, male > OR, female (OR > 1):  
+* Nashville, TN  
+* Fresno, CA  
+* Stockton, CA  
+* Albuquerque, NM  
+For all other cities, the odds of solving homicide cases with female victim is higher than the odds of solving homicide cases with male victims.
