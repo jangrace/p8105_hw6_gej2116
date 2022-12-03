@@ -31,13 +31,26 @@ scale_fill_discrete = scale_fill_viridis_d
 # Problem 2
 
 1. Loaded the data
-2. Crated city_state variable
-3. Removed: Dallax, TX; Phoenix, AZ; Kansas City, MO; Tulsa, AL
-4. Filtered so only victim_race = white or black is included
-5. Converted victim_age to numeric type
+2. Created the following variables:
+   * city_state
+   * case_solved: binary variable where 0 = case unresolved, 1 = case resolved
+3. Filtered the data in the following ways:
+   * For city_state, removed Dallax, TX; Phoenix, AZ; Kansas City, MO; Tulsa, AL
+   * For victim_race, only included White & Black
+5. Converted victim_age's data type from char to numeric
+
 ```{r}
 homicide_df = read.csv('data/homicide.csv') %>% 
-  mutate(city_state = str_c(city, state, sep = ", ")) %>% 
-  filter(city_state != "Tulsa, AL", city_state != "Dallax, TX", city_state != "Phoneix, AZ", city_state != "Kansas City, MO")
+  mutate(city_state = str_c(city, state, sep = ", "),
+         case_solved = case_when(
+           disposition == "Closed without arrest" ~ "0",
+           disposition == "Open/No arrest" ~ "0",
+           disposition == "Closed by arrest" ~ "1")) %>% 
+  filter(city_state != "Tulsa, AL", 
+         city_state != "Dallas, TX", 
+         city_state != "Phoenix, AZ", 
+         city_state != "Kansas City, MO", 
+         victim_race %in% c("White" ,"Black")) %>% 
+  mutate(victim_age = as.numeric(victim_age))
 ```
 
