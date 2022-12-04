@@ -41,7 +41,6 @@ scale_fill_discrete = scale_fill_viridis_d
    * For city_state, remove Dallax, TX; Phoenix, AZ; Kansas City, MO; Tulsa, AL
    * For victim_race, only includ White & Black
 5. Convert victim_age's data type from char to numeric
-6. Skim
 ```{r data_clean}
 homicide_df = read.csv('data/homicide.csv') %>% 
   janitor::clean_names() %>% 
@@ -58,11 +57,6 @@ homicide_df = read.csv('data/homicide.csv') %>%
   mutate(victim_age = as.numeric(victim_age))
 ```
 
-```{r skim}
-skimr::skim(homicide_df)
-```
-
-
 ## Baltimore, MD: GLM
 
 1. Create a new data frame called "baltimore_df"
@@ -73,7 +67,7 @@ homicide_baltimore = homicide_df %>%
 
 2. Fit a log reg (outcome = case_solved, predictors = age, sex, race)
 3. Save glm output
-4. Find CI & estimate for odds ratio for male vs. female (victim_sexMale row) while keeping all other var
+4. Find CI & estimate for odds ratio for male vs. female (victim_sexMale row) while keeping all other variables
 ```{r glm}
 baltimore_log_fit = 
   homicide_baltimore %>% 
@@ -119,7 +113,7 @@ homicide_log_fit =
 knitr::kable(homicide_log_fit)
 ```
 
-## Plot Resolved Homicide Cases in Each City (Male vs. Female)
+## Plot: Solved Homicide Cases in the US (Male vs. Female Victims)
 
 ```{r plot}
 homicide_plot = homicide_log_fit %>% 
@@ -155,7 +149,6 @@ For all other cities, the odds of solving homicide cases with female victim is h
 
 1. Load data
 2. For categorical variables, convert the data type from numeric to factor
-3. Rename variables (for future model)
 ```{r}
 bw_df = read.csv("data/birthweight.csv") %>% 
   janitor::clean_names() %>% 
@@ -165,7 +158,7 @@ bw_df = read.csv("data/birthweight.csv") %>%
          mrace = as.factor(mrace))
 ```
 
-3. Checking for NA
+3. Check for NA
 ```{r}
 skimr::skim(bw_df)
 ```
