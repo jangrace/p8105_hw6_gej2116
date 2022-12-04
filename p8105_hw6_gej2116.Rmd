@@ -7,6 +7,7 @@ output: github_document
 library(tidyverse)
 library(dplyr)
 library(viridis)
+library(modelr)
 library(mgcv)
 
 knitr::opts_chunk$set(
@@ -161,14 +162,10 @@ bw_df = read.csv("data/birthweight.csv") %>%
   mutate(babysex = as.factor(babysex), 
          frace = as.factor(frace), 
          malform = as.factor(malform), 
-         mrace = as.factor(mrace)) %>% 
-  rename(gest_age = gaweeks,
-         mom_bmi = ppbmi,
-         mom_age = momage,
-         n_cig = smoken)
+         mrace = as.factor(mrace))
 ```
 
-3. Checkign for NA
+3. Checking for NA
 ```{r}
 skimr::skim(bw_df)
 ```
@@ -178,36 +175,39 @@ No missing values per output
 
 I would like to propose the following model:  
 * Outcome: birth weight (bwt)
-* Predictors: gestational age (gest_age), mom's pre-pregnancy BMI (mom_bmi), avg # of cigarettes smoked per day during pregnancy (n_cig), and weight gain during pregnancy (wtgain) 
-I am interested observing maternal health behavior and early vs. full-term pregnancy's impact birth weight. 
+* Predictors: gestational age, mom's pre-pregnancy BMI, avg # of cigarettes smoked per day during pregnancy, and weight gain during pregnancy
+I am interested observing maternal health behavior and early vs. full-term pregnancy's impact on birth weight. 
 
-1. Used glance with full model vs. reduced models to decided which predictors should be kept vs. removed
+1. Used glance with full model vs. reduced models to decide which predictors should be kept vs. removed
 2. Reduced Model #1: When pre-pregnancy BMI was removed, both AIC & BIC increased. So, decided to keep pre-pregnancy BMI
 3. Reduced Model #2: When weight gain during pregnancy (lb) was removed, AIC & BIC increased. Hence, also decided to keep this variable.
-4. Decided to proceed with the full model
+4. Decided to proceed with the full model (renamed it to "model_grace")
 ```{r}
 bw_full = bw_df %>% 
-  lm(bwt ~ gest_age + mom_bmi + n_cig + wtgain, data = .)
+  lm(bwt ~ gaweeks + ppbmi + smoken + wtgain, data = .)
 
 bw_full %>% 
   broom::glance()
 
 bw_red1 = bw_df %>% 
-  lm(bwt ~ gest_age + n_cig + wtgain, data = .)
+  lm(bwt ~ gaweeks + smoken + wtgain, data = .)
 
 bw_red1 %>% 
   broom::glance()
 
 bw_red2 = bw_df %>% 
-  lm(bwt ~ gest_age + mom_bmi + n_cig, data = .)
+  lm(bwt ~ gaweeks + ppbmi + smoken, data = .)
 
 bw_red2 %>% 
   broom::glance()
+
+model_grace = bw_df %>% 
+  lm(bwt ~ gaweeks + ppbmi + smoken + wtgain, data = .)
 ```
 
 Used tidy for a quick summary of the model
 ```{r}
-bw_full %>% 
+model_grace %>% 
   broom::tidy() %>% 
   select(term, estimate, p.value) %>% 
   knitr::kable(digits = 3)
@@ -218,8 +218,8 @@ bw_full %>%
 
 ```{r}
 plot1 = bw_df %>% 
-  modelr::add_residuals(bw_full) %>% 
-  modelr::add_predictions(bw_full) %>% 
+  modelr::add_residuals(model_grace) %>% 
+  modelr::add_predictions(model_grace) %>% 
   ggplot(aes(x = pred, y = resid)) + 
   geom_point() +
   labs(
@@ -230,5 +230,56 @@ plot1 = bw_df %>%
 plot1
 ```
 
-## Compare Models: Model 2
+## Comparing My Model to Other Models
 
+1. Model 1: 
+* Outcome: birthweight  
+* Predictors: length at birth, gestational age
+2. Model 2:  
+* Outcome: birthweight  
+* Predictors: head circumference, length, sex, 3-way interaction
+```{r}
+model1 = bw_df %>% 
+  lm(bwt ~ blength + gaweeks, data = .)
+
+model2 = bw_df %>%
+  lm(bwt ~ bhead + blength + babysex + bhead*blength + bhead*babysex + blength*babysex + bhead*blength*babysex, data = .)
+```
+
+Cross-Validation
+```{r}
+cv_df =
+  crossv_mc(bw_df, 100) %>% 
+  mutate(
+    train = map(train, as_tibble),
+    test = map(test, as_tibble))
+
+cv_df =
+  cv_df %>% 
+  mutate(
+    model_grace = map(train, ~lm(bwt ~ gaweeks + ppbmi + smoken + wtgain, data = .x)),
+    model1 = map(train, ~ lm(bwt ~ blength + gaweeks, data = .x)),
+    model2 = map(train, ~ lm(bwt ~ bhead + blength + babysex + bhead*blength + bhead*babysex + blength*babysex + bhead*blength*babysex, data = .x))) %>% 
+  mutate(
+    rmse_model_grace = map2_dbl(model_grace, test, ~rmse(model = .x, data = .y)),
+    rmse_model1 = map2_dbl(model1, test, ~rmse(model = .x, data = .y)),
+    rmse_model2 = map2_dbl(model2, test, ~rmse(model = .x, data = .y)))
+```
+
+Plot RMSE
+```{r}
+cv_df %>% 
+  select(starts_with("rmse")) %>% 
+  pivot_longer(
+    everything(),
+    names_to = "model", 
+    values_to = "rmse",
+    names_prefix = "rmse_") %>% 
+  mutate(model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model, y = rmse)) + 
+  geom_violin() +
+  labs(
+    title = "Test Models",
+    x = "Models",
+    y = "RMSE")
+```
