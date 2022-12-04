@@ -58,7 +58,7 @@ homicide_df = read.csv('data/homicide.csv') %>%
   mutate(victim_age = as.numeric(victim_age))
 ```
 
-```{r skim, include = FALSE}
+```{r skim}
 skimr::skim(homicide_df)
 ```
 
