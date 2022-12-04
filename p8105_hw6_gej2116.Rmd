@@ -232,10 +232,10 @@ plot1
 
 ## Comparing My Model to Other Models
 
-1. Model 1: 
+1. Model 1:
 * Outcome: birthweight  
 * Predictors: length at birth, gestational age
-2. Model 2:  
+2. Model 2:
 * Outcome: birthweight  
 * Predictors: head circumference, length, sex, 3-way interaction
 ```{r}
