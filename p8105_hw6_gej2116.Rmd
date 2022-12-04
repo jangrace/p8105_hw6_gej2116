@@ -7,7 +7,7 @@ output: github_document
 library(tidyverse)
 library(dplyr)
 library(viridis)
-library(p8105.datasets)
+library(mgcv)
 
 knitr::opts_chunk$set(
 	echo = TRUE,
@@ -172,35 +172,54 @@ bw_df = read.csv("data/birthweight.csv") %>%
 ```{r}
 skimr::skim(bw_df)
 ```
+No missing values per output
 
-## Regression Model for Birthweight
+## Testing Variables for the Model
 
 I would like to propose the following model:  
 * Outcome: birth weight (bwt)
-* Predictors: gestational age (gest_age), mom's age at delivery (mom_age), and mom's pre-pregnancy BMI (mom_bmi), avg # of cigarettes smoked per day during pregnancy (n_cig)  
-I am interested observing maternal health, maternal health behavior, and early vs. full-term pregnancy's impact birth weight. 
+* Predictors: gestational age (gest_age), mom's pre-pregnancy BMI (mom_bmi), avg # of cigarettes smoked per day during pregnancy (n_cig), and weight gain during pregnancy (wtgain) 
+I am interested observing maternal health behavior and early vs. full-term pregnancy's impact birth weight. 
 
-1. Setup the regression model (bw_model1)
-2. Glance/tidy for a quick summary of the model and to see whether the selected variables seem appropriate
+1. Used glance with full model vs. reduced models to decided which predictors should be kept vs. removed
+2. Reduced Model #1: When pre-pregnancy BMI was removed, both AIC & BIC increased. So, decided to keep pre-pregnancy BMI
+3. Reduced Model #2: When weight gain during pregnancy (lb) was removed, AIC & BIC increased. Hence, also decided to keep this variable.
+4. Decided to proceed with the full model
 ```{r}
-bw_model1 = bw_df %>% 
-  lm(bwt ~ gest_age + mom_age + mom_bmi + n_cig, data = .)
+bw_full = bw_df %>% 
+  lm(bwt ~ gest_age + mom_bmi + n_cig + wtgain, data = .)
 
-bw_model1 %>% 
+bw_full %>% 
   broom::glance()
 
-bw_model1 %>% 
+bw_red1 = bw_df %>% 
+  lm(bwt ~ gest_age + n_cig + wtgain, data = .)
+
+bw_red1 %>% 
+  broom::glance()
+
+bw_red2 = bw_df %>% 
+  lm(bwt ~ gest_age + mom_bmi + n_cig, data = .)
+
+bw_red2 %>% 
+  broom::glance()
+```
+
+Used tidy for a quick summary of the model
+```{r}
+bw_full %>% 
   broom::tidy() %>% 
   select(term, estimate, p.value) %>% 
   knitr::kable(digits = 3)
 ```
 
+
 ## Plot of Model Residuals Against Fitted Values
 
 ```{r}
 plot1 = bw_df %>% 
-  modelr::add_residuals(bw_model1) %>% 
-  modelr::add_predictions(bw_model1) %>% 
+  modelr::add_residuals(bw_full) %>% 
+  modelr::add_predictions(bw_full) %>% 
   ggplot(aes(x = pred, y = resid)) + 
   geom_point() +
   labs(
@@ -211,4 +230,5 @@ plot1 = bw_df %>%
 plot1
 ```
 
+## Compare Models: Model 2
 
