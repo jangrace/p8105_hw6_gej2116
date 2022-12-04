@@ -30,7 +30,7 @@ scale_fill_discrete = scale_fill_viridis_d
 
 # Problem 2
 
-## Clean Data
+## Load & Clean Data
 
 1. Load data
 2. Create following variables:
@@ -40,8 +40,7 @@ scale_fill_discrete = scale_fill_viridis_d
    * For city_state, remove Dallax, TX; Phoenix, AZ; Kansas City, MO; Tulsa, AL
    * For victim_race, only includ White & Black
 5. Convert victim_age's data type from char to numeric
-6. Skim data
-
+6. Skim
 ```{r data_clean}
 homicide_df = read.csv('data/homicide.csv') %>% 
   janitor::clean_names() %>% 
@@ -148,3 +147,68 @@ Cities where OR, male > OR, female (OR > 1):
 * Stockton, CA  
 * Albuquerque, NM  
 For all other cities, the odds of solving homicide cases with female victim is higher than the odds of solving homicide cases with male victims.
+
+# Problem 3
+
+## Load, Clean, and Observe Data
+
+1. Load data
+2. For categorical variables, convert the data type from numeric to factor
+3. Rename variables (for future model)
+```{r}
+bw_df = read.csv("data/birthweight.csv") %>% 
+  janitor::clean_names() %>% 
+  mutate(babysex = as.factor(babysex), 
+         frace = as.factor(frace), 
+         malform = as.factor(malform), 
+         mrace = as.factor(mrace)) %>% 
+  rename(gest_age = gaweeks,
+         mom_bmi = ppbmi,
+         mom_age = momage,
+         n_cig = smoken)
+```
+
+3. Checkign for NA
+```{r}
+skimr::skim(bw_df)
+```
+
+## Regression Model for Birthweight
+
+I would like to propose the following model:  
+* Outcome: birth weight (bwt)
+* Predictors: gestational age (gest_age), mom's age at delivery (mom_age), and mom's pre-pregnancy BMI (mom_bmi), avg # of cigarettes smoked per day during pregnancy (n_cig)  
+I am interested observing maternal health, maternal health behavior, and early vs. full-term pregnancy's impact birth weight. 
+
+1. Setup the regression model (bw_model1)
+2. Glance/tidy for a quick summary of the model and to see whether the selected variables seem appropriate
+```{r}
+bw_model1 = bw_df %>% 
+  lm(bwt ~ gest_age + mom_age + mom_bmi + n_cig, data = .)
+
+bw_model1 %>% 
+  broom::glance()
+
+bw_model1 %>% 
+  broom::tidy() %>% 
+  select(term, estimate, p.value) %>% 
+  knitr::kable(digits = 3)
+```
+
+## Plot of Model Residuals Against Fitted Values
+
+```{r}
+plot1 = bw_df %>% 
+  modelr::add_residuals(bw_model1) %>% 
+  modelr::add_predictions(bw_model1) %>% 
+  ggplot(aes(x = pred, y = resid)) + 
+  geom_point() +
+  labs(
+    title = "Residuals vs. Fitted Values",
+    x = "Fitted Values",
+    y = "Residuals")
+
+plot1
+```
+
+
